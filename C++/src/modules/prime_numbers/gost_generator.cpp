@@ -31,7 +31,6 @@ uint64_t generateGostPrimeP(int p_bits, int q_bits, int &rejected_count) {
 		uint64_t seed = generateRandomUint64(p_bits);
 		uint64_t p0 = seed - (seed % two_q) + 1;
 
-		// ИСПРАВЛЕНИЕ: Замена __builtin_clzll на переносимую функцию bit_length
 		if (bit_length(p0) < p_bits) {
 			p0 += two_q;
 		}

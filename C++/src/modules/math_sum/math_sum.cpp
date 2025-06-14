@@ -15,20 +15,16 @@ long long pow(int base, int exp) {
 	return result;
 }
 
-// Вычисляет наибольший общий делитель двух чисел
 long long gcd(long long numA, long long numB) { return std::gcd(numA, numB); }
 
-// Сокращает рациональную дробь до несократимого вида
 Rational simplifyRational(long long numer, long long denom) {
 	if (denom == 0) {
-		// Обработка деления на ноль, хотя в контексте задачи это не должно произойти
 		return {numer, denom};
 	}
 	long long commonDivisor = gcd(std::abs(numer), std::abs(denom));
 	long long simplifiedNumer = numer / commonDivisor;
 	long long simplifiedDenom = denom / commonDivisor;
 
-	// Гарантируем, что знаменатель всегда положителен
 	if (simplifiedDenom < 0) {
 		simplifiedNumer = -simplifiedNumer;
 		simplifiedDenom = -simplifiedDenom;
@@ -36,22 +32,17 @@ Rational simplifyRational(long long numer, long long denom) {
 	return {simplifiedNumer, simplifiedDenom};
 }
 
-// Вычисляет и печатает сумму ряда
 void calculateAndPrintSeriesSum(int valA, int valB) {
-	// Проверка на расходимость ряда
 	if (valB == 1) {
 		std::cout << "Ряд расходится: infinity" << std::endl;
 		return;
 	}
 
-	long long numerSum = 0; // Числитель суммы
-	long long denomSum = 1; // Знаменатель суммы
+	long long numerSum = 0;
+	long long denomSum = 1;
 
-	// Используем векторы для хранения коэффициентов числителя
 	std::vector<long long> numCoeffs;
 
-	// Вычисляем числитель и знаменатель для каждого 'a'
-	// long long currentB = 1; // Для возведения b в степень
 	switch (valA) {
 	case 1:
 		numerSum = valB;
@@ -119,9 +110,6 @@ void calculateAndPrintSeriesSum(int valA, int valB) {
 
 	Rational resultFrac = simplifyRational(numerSum, denomSum);
 
-	// Поскольку 'a' и 'b' являются целыми числами, а формулы для суммирования
-	// рядов с n^a/b^n дают рациональные числа, результат всегда будет рациональным.
-	// Иррациональность в этом случае невозможна.
 	std::cout << "Сумма ряда: " << resultFrac.numer << "/" << resultFrac.denom << " ("
 			  << resultFrac.numer / static_cast<double>(resultFrac.denom) << ")" << std::endl;
 }
@@ -131,19 +119,17 @@ void calculateMathSum() {
 	std::cout << "Программа для вычисления суммы ряда" << std::endl;
 	std::cout << std::string(30, '-') << std::endl;
 
-	int valA = 0; // Переменная для хранения числа 'a'
-	int valB = 0; // Переменная для хранения числа 'b'
+	int valA = 0;
+	int valB = 0;
 
-	// Запрашиваем ввод 'a' и проверяем его
 	while (true) {
 		std::cout << "Введите целое число 'a' (от 1 до 10): ";
 		if (!(std::cin >> valA) || valA < 1 || valA > 10) {
 			std::cout << "Некорректный ввод. Пожалуйста, введите число от 1 до 10." << std::endl;
-			std::cin.clear(); // Очищаем флаги ошибок ввода
-			// Игнорируем оставшиеся символы в буфере ввода до конца строки
+			std::cin.clear();
 			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		} else {
-			break; // Ввод корректен, выходим из цикла
+			break;
 		}
 	}
 
@@ -152,11 +138,10 @@ void calculateMathSum() {
 		std::cout << "Введите целое число 'b' (от 1 до 10): ";
 		if (!(std::cin >> valB) || valB < 1 || valB > 10) {
 			std::cout << "Некорректный ввод. Пожалуйста, введите число от 1 до 10." << std::endl;
-			std::cin.clear(); // Очищаем флаги ошибок ввода
-			// Игнорируем оставшиеся символы в буфере ввода до конца строки
+			std::cin.clear();
 			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		} else {
-			break; // Ввод корректен, выходим из цикла
+			break;
 		}
 	}
 

@@ -4,8 +4,6 @@
 #include <random>
 #include <stdexcept>
 
-// Переносимая C++17-реализация модульного умножения без переполнения.
-// Этот алгоритм (бинарное умножение) заменяет зависимость от __int128.
 uint64_t modMul(uint64_t a, uint64_t b, uint64_t mod) {
 	uint64_t res = 0;
 	a %= mod;
@@ -52,7 +50,6 @@ uint64_t generateRandomUint64(int bits) {
 
 	uint64_t random_val = gen();
 
-	// Создание маски без использования __int128
 	uint64_t mask;
 	if (bits == 64) {
 		mask = std::numeric_limits<uint64_t>::max();
@@ -80,8 +77,6 @@ uint64_t generateRandomInRange(uint64_t min, uint64_t max) {
 	return distrib(gen);
 }
 
-// Переносимая C++17-реализация для определения битовой длины.
-// Заменяет зависимость от __builtin_clzll.
 int bit_length(uint64_t n) {
 	if (n == 0)
 		return 0;

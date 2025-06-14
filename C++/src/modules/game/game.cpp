@@ -3,12 +3,10 @@
 // Рекурсивная функция для определения оптимального хода
 GameResult solveGame(const std::vector<int> &currentNumbers, int maxEraseCount, bool isPavelTurn,
 					 std::vector<std::vector<GameResult>> &memo) {
-	// Базовый случай: если чисел не осталось, игра окончена
 	if (currentNumbers.empty()) {
 		return {0, 0};
 	}
 
-	// Проверка мемоизации
 	int currentSize = currentNumbers.size();
 	int turnIndex = isPavelTurn ? 0 : 1;
 	if (memo[currentSize][turnIndex].pavelScore != -1) {
@@ -18,17 +16,15 @@ GameResult solveGame(const std::vector<int> &currentNumbers, int maxEraseCount, 
 	long long bestPavelScore = (isPavelTurn ? -2e18 : 2e18); // Инициализация для Павла
 	long long bestVikaScore = (isPavelTurn ? 2e18 : -2e18);	 // Инициализация для Вики
 
-	// Игроки действуют оптимально, поэтому выбирают ход, который максимизирует/минимизирует их счет
+	// Выбирают ход, который максимизирует/минимизирует их счет
 	for (int i = 1; i <= std::min(maxEraseCount, currentSize); ++i) {
-		// Вычисление суммы стираемых чисел
 		long long currentSum = 0;
 		for (int j = 0; j < i; ++j) {
 			currentSum += currentNumbers[j];
 		}
 
-		// Создание новой последовательности чисел после хода
 		std::vector<int> nextNumbers;
-		nextNumbers.reserve(currentSize - i); // Резервирование памяти
+		nextNumbers.reserve(currentSize - i);
 		for (int j = i; j < currentSize; ++j) {
 			nextNumbers.push_back(currentNumbers[j]);
 		}
@@ -91,11 +87,9 @@ int calculateWinner(const std::vector<int> &numbers, int maxEraseCount) {
 }
 
 void startGame() {
-	// Ввод количества чисел и максимально стираемых чисел
 	int totalNumbers;
 	int maxEraseCount;
 
-	// Безопасный ввод количества чисел
 	std::cout << "Введите общее количество чисел (от 5 до 50000): ";
 	while (!(std::cin >> totalNumbers) || totalNumbers < 5 || totalNumbers > 50000) {
 		std::cout << "Некорректный ввод. Пожалуйста, введите число от 5 до 50000: ";
@@ -103,7 +97,6 @@ void startGame() {
 		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 	}
 
-	// Безопасный ввод максимально стираемых чисел
 	std::cout
 		<< "Введите максимальное количество чисел, которые можно стереть за ход (от 4 до 100): ";
 	while (!(std::cin >> maxEraseCount) || maxEraseCount < 4 || maxEraseCount > 100) {
@@ -112,7 +105,6 @@ void startGame() {
 		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 	}
 
-	// Ввод последовательности чисел
 	std::vector<int> numbers(totalNumbers);
 	std::cout << "Введите " << totalNumbers << " целых чисел, разделенных пробелами: " << std::endl;
 	for (int i = 0; i < totalNumbers; ++i) {
@@ -123,9 +115,7 @@ void startGame() {
 		}
 	}
 
-	// Вычисление победителя
 	int winner = calculateWinner(numbers, maxEraseCount);
 
-	// Вывод результата
 	std::cout << winner << std::endl;
 }
