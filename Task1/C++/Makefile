@@ -1,24 +1,23 @@
 CXX = g++
-CXXFLAGS = -Wall -Wextra -Werror -pedantic -std=c++20 -O3
+CXXFLAGS = -Wall -Wextra -Werror -pedantic -std=c++17 -O3 -Iinclude
+
+SRC_FILES = $(shell find src -type f -name '*.cpp')
+OBJECT_FILES = $(SRC_FILES:src/%.cpp=build/%.o)
 
 PROG = program
-OBJECTS = main.o library.o
-
-CLEAN = rm -f $(OBJECTS) $(PROG)
 
 all: $(PROG)
 
-$(PROG): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(PROG)
+$(PROG): $(OBJECT_FILES)
+	@mkdir -p bin
+	$(CXX) $(CXXFLAGS) $(OBJECT_FILES) -o bin/$(PROG)
 
-%.o: %.cpp
+build/%.o: src/%.cpp
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 run:
-	./$(PROG)
+	./bin/$(PROG)
 
 clean:
-	$(CLEAN)
-
-test: $(PROG) run
-	$(CLEAN)
+	rm -rf build bin
