@@ -1,6 +1,6 @@
-#include "../include/gost_generator.h"
-#include "../include/primality_tests.h"
-#include "../include/utils.h"
+#include "modules/prime_numbers/gost_generator.hpp"
+#include "modules/prime_numbers/primality_tests.hpp"
+#include "modules/prime_numbers/utils.hpp"
 
 #include <limits>
 #include <stdexcept>

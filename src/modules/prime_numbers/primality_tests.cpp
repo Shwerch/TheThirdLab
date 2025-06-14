@@ -1,5 +1,5 @@
-#include "../include/primality_tests.h"
-#include "../include/utils.h"
+#include "modules/prime_numbers/primality_tests.hpp"
+#include "modules/prime_numbers/utils.hpp"
 
 #include <stdexcept>
 #include <vector>

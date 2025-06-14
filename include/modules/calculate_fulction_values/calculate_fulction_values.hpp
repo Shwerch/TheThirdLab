@@ -20,3 +20,5 @@ void calculateFunction(double startX, double endX, double stepX, std::vector<Poi
 
 // Выводит данные из вектора точек в виде отформатированной таблицы
 void printTable(const std::vector<Point> &pointsVec);
+
+void calculateFunctionValues();

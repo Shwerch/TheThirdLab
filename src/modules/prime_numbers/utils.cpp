@@ -1,4 +1,4 @@
-#include "../include/utils.h"
+#include "modules/prime_numbers/utils.hpp"
 
 #include <limits>
 #include <random>

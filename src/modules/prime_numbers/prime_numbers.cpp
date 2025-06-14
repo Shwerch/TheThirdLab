@@ -1,5 +1,6 @@
-#include "../include/gost_generator.h"
-#include "../include/primality_tests.h"
+#include "modules/prime_numbers/prime_numbers.hpp"
+#include "modules/prime_numbers/gost_generator.hpp"
+#include "modules/prime_numbers/primality_tests.hpp"
 
 #include <cstdint>
 #include <iomanip>
@@ -26,7 +27,7 @@ void printResultsTable(const std::vector<ExperimentResult> &results) {
 	std::cout << std::endl;
 }
 
-int main() {
+void calculatePrimeNumbers() {
 	std::setlocale(LC_ALL, "Russian");
 
 	std::cout << "Таблица простых чисел < 500 (Решето Эратосфена):\n";
@@ -78,6 +79,4 @@ int main() {
 	}
 	printResultsTable(results);
 	results.clear();
-
-	return 0;
 }
