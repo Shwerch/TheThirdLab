@@ -1,35 +1,73 @@
-#include "modules/math_sum/math_sum.hpp"
-
 #include <cmath>
-#include <ios>
 #include <iostream>
 #include <limits>
 #include <numeric>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
-long long pow(int base, int exp) {
+struct Rational {
+	long long numer;
+	long long denom;
+};
+
+long long integer_pow(int base, int exp) {
+	if (exp < 0)
+		return 0;
 	long long result = 1;
-	for (int i = 0; i < exp; ++i)
+	for (int i = 0; i < exp; ++i) {
 		result *= base;
+	}
 	return result;
 }
 
-long long gcd(long long numA, long long numB) { return std::gcd(numA, numB); }
-
-Rational simplifyRational(long long numer, long long denom) {
-	if (denom == 0) {
-		return {numer, denom};
+Rational simplifyRational(Rational r) {
+	if (r.denom == 0) {
+		return r;
 	}
-	long long commonDivisor = gcd(std::abs(numer), std::abs(denom));
-	long long simplifiedNumer = numer / commonDivisor;
-	long long simplifiedDenom = denom / commonDivisor;
+	long long commonDivisor = std::gcd(std::abs(r.numer), std::abs(r.denom));
+	r.numer /= commonDivisor;
+	r.denom /= commonDivisor;
 
-	if (simplifiedDenom < 0) {
-		simplifiedNumer = -simplifiedNumer;
-		simplifiedDenom = -simplifiedDenom;
+	if (r.denom < 0) {
+		r.numer = -r.numer;
+		r.denom = -r.denom;
 	}
-	return {simplifiedNumer, simplifiedDenom};
+	return r;
+}
+
+std::vector<long long> generateEulerianNumbers(int n) {
+	if (n < 1)
+		return {};
+	if (n == 1)
+		return {1};
+
+	std::vector<long long> prev_coeffs = {1};
+	for (int i = 2; i <= n; ++i) {
+		std::vector<long long> current_coeffs(i, 0);
+		for (int k = 0; k < i; ++k) {
+			long long term1 = (k > 0) ? (long long)(k)*prev_coeffs[k - 1] : 0;
+			long long term2 = (k < i - 1) ? (long long)(i - k) * prev_coeffs[k] : 0;
+			current_coeffs[k] = term1 + term2;
+		}
+		prev_coeffs = std::move(current_coeffs);
+	}
+	std::vector<std::vector<long long>> A(n + 1, std::vector<long long>(n + 1, 0));
+	A[0][0] = 1;
+	for (int i = 1; i <= n; ++i) {
+		for (int k = 1; k <= i; ++k) {
+			A[i][k] = (long long)(k)*A[i - 1][k] + (long long)(i - k + 1) * A[i - 1][k - 1];
+		}
+	}
+	return {A[n].begin() + 1, A[n].end()};
+}
+
+long long evaluatePolynomial(const std::vector<long long> &coeffs, int x) {
+	long long result = 0;
+	for (int i = coeffs.size() - 1; i >= 0; --i) {
+		result = result * x + coeffs[i];
+	}
+	return result;
 }
 
 void calculateAndPrintSeriesSum(int valA, int valB) {
@@ -38,112 +76,39 @@ void calculateAndPrintSeriesSum(int valA, int valB) {
 		return;
 	}
 
-	long long numerSum = 0;
-	long long denomSum = 1;
+	auto eulerian_coeffs = generateEulerianNumbers(valA);
+	long long numerator_poly_val = evaluatePolynomial(eulerian_coeffs, valB);
 
-	std::vector<long long> numCoeffs;
+	Rational frac{(long long)valB * numerator_poly_val, integer_pow(valB - 1, valA + 1)};
 
-	switch (valA) {
-	case 1:
-		numerSum = valB;
-		denomSum = pow(valB - 1, 2);
-		break;
-	case 2:
-		numerSum = (long long)valB * (valB + 1);
-		denomSum = pow(valB - 1, 3);
-		break;
-	case 3:
-		// numCoeffs = {1, 4, 1}; // Коэффициенты для (b^2+4b+1)
-		numerSum = (long long)valB * (pow(valB, 2) + 4 * valB + 1);
-		denomSum = pow(valB - 1, 4);
-		break;
-	case 4:
-		// numCoeffs = {1, 11, 11, 1}; // Коэффициенты для (b^3+11b^2+11b+1)
-		numerSum = (long long)valB * (pow(valB, 3) + 11 * pow(valB, 2) + 11 * valB + 1);
-		denomSum = pow(valB - 1, 5);
-		break;
-	case 5:
-		// numCoeffs = {1, 26, 66, 26, 1};
-		numerSum = (long long)valB *
-				   (pow(valB, 4) + 26 * pow(valB, 3) + 66 * pow(valB, 2) + 26 * valB + 1);
-		denomSum = pow(valB - 1, 6);
-		break;
-	case 6:
-		// numCoeffs = {1, 57, 302, 302, 57, 1};
-		numerSum = (long long)valB * (pow(valB, 5) + 57 * pow(valB, 4) + 302 * pow(valB, 3) +
-									  302 * pow(valB, 2) + 57 * valB + 1);
-		denomSum = pow(valB - 1, 7);
-		break;
-	case 7:
-		// numCoeffs = {1, 120, 1191, 2416, 1191, 120, 1};
-		numerSum = (long long)valB * (pow(valB, 6) + 120 * pow(valB, 5) + 1191 * pow(valB, 4) +
-									  2416 * pow(valB, 3) + 1191 * pow(valB, 2) + 120 * valB + 1);
-		denomSum = pow(valB - 1, 8);
-		break;
-	case 8:
-		// numCoeffs = {1, 247, 4293, 15619, 15619, 4293, 247, 1};
-		numerSum = (long long)valB *
-				   (pow(valB, 7) + 247 * pow(valB, 6) + 4293 * pow(valB, 5) + 15619 * pow(valB, 4) +
-					15619 * pow(valB, 3) + 4293 * pow(valB, 2) + 247 * valB + 1);
-		denomSum = pow(valB - 1, 9);
-		break;
-	case 9:
-		// numCoeffs = {1, 502, 14608, 88234, 156190, 88234, 14608, 502, 1};
-		numerSum = (long long)valB * (pow(valB, 8) + 502 * pow(valB, 7) + 14608 * pow(valB, 6) +
-									  88234 * pow(valB, 5) + 156190 * pow(valB, 4) +
-									  88234 * pow(valB, 3) + 14608 * pow(valB, 2) + 502 * valB + 1);
-		denomSum = pow(valB - 1, 10);
-		break;
-	case 10:
-		// numCoeffs = {1, 1013, 47840, 455192, 1310356, 1310356, 455192, 47840, 1013, 1};
-		numerSum = (long long)valB *
-				   (pow(valB, 9) + 1013 * pow(valB, 8) + 47840 * pow(valB, 7) +
-					455192 * pow(valB, 6) + 1310356 * pow(valB, 5) + 1310356 * pow(valB, 4) +
-					455192 * pow(valB, 3) + 47840 * pow(valB, 2) + 1013 * valB + 1);
-		denomSum = pow(valB - 1, 11);
-		break;
-	default:
-		// Этот случай не должен быть достигнут из-за проверки ввода
-		std::cout << "Неизвестное значение 'a'." << std::endl;
-		return;
-	}
-
-	Rational resultFrac = simplifyRational(numerSum, denomSum);
+	Rational resultFrac = simplifyRational(frac);
 
 	std::cout << "Сумма ряда: " << resultFrac.numer << "/" << resultFrac.denom << " ("
-			  << resultFrac.numer / static_cast<double>(resultFrac.denom) << ")" << std::endl;
+			  << static_cast<double>(resultFrac.numer) / resultFrac.denom << ")" << std::endl;
 }
+
+template <typename T> T getValidatedInput(const std::string &prompt, T min, T max) {
+	T value;
+	while (true) {
+		std::cout << prompt;
+		if (std::cin >> value && value >= min && value <= max) {
+			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+			return value;
+		}
+		std::cout << "Некорректный ввод. Пожалуйста, введите целое число от " << min << " до "
+				  << max << "." << std::endl;
+		std::cin.clear();
+		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	}
+}
+
 void calculateMathSum() {
-	// Выводим приветствие
 	std::cout << std::string(30, '-') << std::endl;
 	std::cout << "Программа для вычисления суммы ряда" << std::endl;
 	std::cout << std::string(30, '-') << std::endl;
 
-	int valA = 0;
-	int valB = 0;
-
-	while (true) {
-		std::cout << "Введите целое число 'a' (от 1 до 10): ";
-		if (!(std::cin >> valA) || valA < 1 || valA > 10) {
-			std::cout << "Некорректный ввод. Пожалуйста, введите число от 1 до 10." << std::endl;
-			std::cin.clear();
-			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-		} else {
-			break;
-		}
-	}
-
-	// Запрашиваем ввод 'b' и проверяем его
-	while (true) {
-		std::cout << "Введите целое число 'b' (от 1 до 10): ";
-		if (!(std::cin >> valB) || valB < 1 || valB > 10) {
-			std::cout << "Некорректный ввод. Пожалуйста, введите число от 1 до 10." << std::endl;
-			std::cin.clear();
-			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-		} else {
-			break;
-		}
-	}
+	int valA = getValidatedInput<int>("Введите целое число 'a' (от 1 до 10): ", 1, 10);
+	int valB = getValidatedInput<int>("Введите целое число 'b' (от 1 до 10): ", 1, 10);
 
 	calculateAndPrintSeriesSum(valA, valB);
 }

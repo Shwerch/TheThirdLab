@@ -32,7 +32,6 @@ bool isProbablePrimeMillerRabin(uint64_t n, int iterations) {
 
 	static const std::vector<int> smallPrimes = sieveOfEratosthenes(500);
 	for (int p : smallPrimes) {
-		// ИСПРАВЛЕНИЕ: приведение типа для корректного сравнения
 		if (n == static_cast<uint64_t>(p))
 			return true;
 		if (n % static_cast<uint64_t>(p) == 0)
@@ -73,7 +72,7 @@ uint64_t generatePrimeMillerRabin(int bits, int &rejected_count) {
 		if (p % 2 == 0)
 			p++;
 
-		if (isProbablePrimeMillerRabin(p, 10)) {
+		if (isProbablePrimeMillerRabin(p, 2)) {
 			return p;
 		}
 		rejected_count++;
@@ -97,7 +96,7 @@ uint64_t generatePrimePocklington(int bits, int &rejected_count) {
 			continue;
 		}
 
-		if (isProbablePrimeMillerRabin(p_candidate, 10)) {
+		if (isProbablePrimeMillerRabin(p_candidate, 2)) {
 			return p_candidate;
 		}
 		R++;
