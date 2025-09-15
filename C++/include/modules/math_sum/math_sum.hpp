@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
+
 struct Rational {
-	long long numer; // Числитель
-	long long denom; // Знаменатель
+	uint64_t numer; // Числитель
+	uint64_t denom; // Знаменатель
 };
 
 void calculateMathSum();

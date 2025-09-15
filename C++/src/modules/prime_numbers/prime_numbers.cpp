@@ -244,10 +244,7 @@ void print_table_and_stats(const string &name, const vector<u64> &vec, int mr_ro
     cout << "K = " << k_count << endl << endl;
 }
 
-// ------------------ main ------------------
-int main() {
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
+/*int main() {
 
     // ----------------- параметры -----------------
     const int LIMIT_SMALL_PRIMES = 500;
@@ -286,3 +283,4 @@ int main() {
 
     return 0;
 }
+*/

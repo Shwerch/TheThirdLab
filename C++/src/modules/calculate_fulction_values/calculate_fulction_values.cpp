@@ -1,5 +1,8 @@
 #include "modules/calculate_fulction_values/calculate_fulction_values.hpp"
 
+#include <iomanip>
+#include <iostream>
+
 // Вычисляет значение функции f(x) для заданного x
 double calculateF(double currentX) {
 	if (currentX >= -8.0 && currentX <= -5.0) {
