@@ -4,7 +4,7 @@
 #include "modules/calculate_fulction_values/calculate_fulction_values.hpp"
 #include "modules/game/game.hpp"
 #include "modules/math_sum/math_sum.hpp"
-//#include "modules/prime_numbers/prime_numbers.hpp"
+#include "modules/prime_numbers/prime_numbers.hpp"
 
 int main() {
 	while (true) {
@@ -21,7 +21,7 @@ int main() {
 			calculateFunctionValues();
 			break;
 		case MainMenu::PRIME_NUMBERS:
-			//calculatePrimeNumbers();
+			calculatePrimeNumbers();
 			break;
 		case MainMenu::MATH_SUM:
 			calculateMathSum();
