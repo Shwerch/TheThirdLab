@@ -1,6 +1,3 @@
-// Короткие поясняющие комментарии на русском.
-// Соблюдать только перечисленные целочисленные типы для целых величин.
-
 #include <bits/stdc++.h>
 using namespace std;
 
@@ -10,8 +7,7 @@ using u32 = uint32_t;
 using u64 = uint64_t;
 using i64 = int64_t;
 
-static std::mt19937_64
-	rng((uint64_t)chrono::high_resolution_clock::now().time_since_epoch().count());
+static mt19937_64 rng((uint64_t)chrono::high_resolution_clock::now().time_since_epoch().count());
 
 // ----- Утилиты -----
 static u32 bit_length_u64(u64 x) {
@@ -62,7 +58,7 @@ static u64 powmod(u64 a, u64 e, u64 mod) {
 static u64 random_in_range(u64 lo, u64 hi) {
 	if (lo >= hi)
 		return lo;
-	std::uniform_int_distribution<u64> dist(lo, hi);
+	uniform_int_distribution<u64> dist(lo, hi);
 	return dist(rng);
 }
 
@@ -206,7 +202,7 @@ static bool pocklington_test(u64 n, const map<u64, u32> &F_factors, u32 t) {
 			u64 q = pf.first;
 			u64 exp = (n - 1) / q;
 			u64 val = powmod(a, exp, n);
-			u64 g = std::gcd((u64)((val + n - 1) % n), n); // gcd(val-1, n)
+			u64 g = gcd((u64)((val + n - 1) % n), n); // gcd(val-1, n)
 			if (g != 1) {
 				ok_for_all_q = false;
 				break;
@@ -350,7 +346,6 @@ static bool build_F_and_R_for_pocklington(u32 target_bits, const vector<u16> &sm
 			R += 1;
 		if (R == 0)
 			continue;
-		// n = R*F + 1
 		// проверка переполнения
 		if (F > (UINT64_MAX - 1) / R)
 			continue;
@@ -369,10 +364,7 @@ static bool build_F_and_R_for_pocklington(u32 target_bits, const vector<u16> &sm
 	return false;
 }
 
-// Упрощённый алгоритм по мотивам ГОСТ R 34.10-94:
-// 1) строим случайное q заданной небольшой длины (например половина требуемой), простое
-// 2) пробуем случайные k, p = k*q + 1, проверяем p на простоту (MR)
-// (это адаптация общего подхода поиска p с известным простым делителем q)
+// ГОСТ R 34.10-94:
 static u64 generate_gost_like(u32 bits, const vector<u16> &small_primes,
 							  vector<u64> &rejected_candidates) {
 	u32 qbits = max<u32>(2, bits / 2);
@@ -400,13 +392,12 @@ static u64 generate_gost_like(u32 bits, const vector<u16> &small_primes,
 	return 0;
 }
 
-// ----- Основной эксперимент -----
 // Для каждого метода: генерируем 10 чисел, проверяем их MR(t) с t, даём таблицу.
 // Сохраняем отклонённые кандидаты и считаем k — сколько отклонённых MR считает простыми.
 
 void calculatePrimeNumbers() {
 
-	u32 target_bits = 16; // по умолчанию 7 бит
+	u32 target_bits = 16;
 
 	// Sieve < 500
 	vector<u16> small_primes = sieve_primes_upto(499);
