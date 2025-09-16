@@ -364,33 +364,64 @@ static bool build_F_and_R_for_pocklington(u32 target_bits, const vector<u16> &sm
 	return false;
 }
 
-// ГОСТ R 34.10-94:
-static u64 generate_gost_like(u32 bits, const vector<u16> &small_primes,
-							  vector<u64> &rejected_candidates) {
-	u32 qbits = max<u32>(2, bits / 2);
-	for (u32 attempt = 0; attempt < 5000; ++attempt) {
-		u64 q = generate_random_prime_bits(qbits, small_primes, 5);
-		// ищем k так, чтобы p = k*q + 1 имел нужную длину и был простым
-		// начнём с k ~ 2^{bits}/q
-		u64 lower = ((u64)1 << (bits - 1)) / q;
-		if (lower < 2)
-			lower = 2;
-		for (u32 kk = 0; kk < 500; ++kk) {
-			u64 k = lower + kk;
-			// избегаем переполнений
-			if (k > (UINT64_MAX - 1) / q)
-				break;
-			u64 p = k * q + 1;
-			if (bit_length_u64(p) != bits)
-				continue;
-			if (miller_rabin(p, 6))
-				return p;
-			else
-				rejected_candidates.push_back(p);
-		}
-	}
-	return 0;
+// быстрое возведение в степень по модулю
+static uint64_t mod_pow(uint64_t base, uint64_t exp, uint64_t mod) {
+    uint64_t result = 1 % mod;
+    base %= mod;
+    while (exp > 0) {
+        if (exp & 1) { // если текущий бит равен 1
+            result = (__uint128_t)result * base % mod;
+        }
+        base = (__uint128_t)base * base % mod;
+        exp >>= 1; // переходим к следующему биту
+    }
+    return result;
 }
+
+
+// ГОСТ Р 34.10-94 (на основе теоремы Диемитко)
+static uint64_t generate_gost_like(uint32_t bits, const vector<uint16_t> &small_primes,
+                                   vector<uint64_t> &rejected_candidates) {
+    uint32_t qbits = max<uint32_t>(2, bits / 2);
+
+    for (uint32_t attempt = 0; attempt < 5000; ++attempt) {
+        // генерируем простое q длиной ~bits/2
+        uint64_t q = generate_random_prime_bits(qbits, small_primes, 5);
+
+        // генерируем случайную дробь ξ в (0,1)
+        double xi = (double)rand() / (double)RAND_MAX;
+
+        // шаг 1: вычисляем N
+        uint64_t N = ((uint64_t)1 << (bits - 1)) / q;
+        N += (uint64_t)(((double)((uint64_t)1 << (bits - 1)) * xi) / (double)q);
+
+        // делаем N чётным
+        if (N % 2 == 1) N++;
+
+        // шаги 2–6
+        uint64_t u = 0;
+        while (true) {
+            // кандидат в простые
+            if (N > (UINT64_MAX - 1) / q) break; // избегаем переполнения
+            uint64_t p = (N + u) * q + 1;
+
+            // проверка верхней границы
+            if (p >= ((uint64_t)1 << bits)) break;
+
+            // проверка условия теоремы Диемитко для a=2
+            if (mod_pow(2, p - 1, p) == 1 && mod_pow(2, (p - 1) / q, p) != 1) {
+                return p; // простое число найдено
+            } else {
+                rejected_candidates.push_back(p);
+            }
+
+            // шаг 6: увеличиваем u на 2
+            u += 2;
+        }
+    }
+    return 0;
+}
+
 
 // Для каждого метода: генерируем 10 чисел, проверяем их MR(t) с t, даём таблицу.
 // Сохраняем отклонённые кандидаты и считаем k — сколько отклонённых MR считает простыми.
