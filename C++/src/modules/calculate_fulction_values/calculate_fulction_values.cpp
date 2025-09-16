@@ -1,5 +1,6 @@
 #include "modules/calculate_fulction_values/calculate_fulction_values.hpp"
 
+#include <cmath>
 #include <iomanip>
 #include <iostream>
 
@@ -52,14 +53,12 @@ void calculateFunctionValues() {
 	// Начальное и конечное значения X
 	const double xStart = -8.0;
 	const double xEnd = 10.0;
-	// Шаг изменения X
-	const double dxVal = 0.1;
 
 	// Вектор для хранения пар значений X и F(X)
 	std::vector<Point> graphPoints;
 
 	// Расчет значений функции и заполнение вектора
-	calculateFunction(xStart, xEnd, dxVal, graphPoints);
+	calculateFunction(xStart, xEnd, 0.5, graphPoints);
 
 	// Вывод таблицы с отформатированными данными
 	printTable(graphPoints);

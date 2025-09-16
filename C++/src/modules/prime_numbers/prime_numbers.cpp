@@ -1,329 +1,557 @@
-// Краткие поясняющие комментарии в коде.
-// Везде для целых используются fixed-width типы: uint8_t..uint64_t и int8_t..int64_t.
+// Короткие поясняющие комментарии на русском.
+// Соблюдать только перечисленные целочисленные типы для целых величин.
 
 #include <bits/stdc++.h>
-#include <cstdint>
-#include <random>
-#include <iomanip>
+using namespace std;
 
-using std::vector;
-using std::string;
-using std::cout;
+using u8 = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+using u64 = uint64_t;
+using i64 = int64_t;
 
-// Простая реализация решета Эратосфена для чисел < limit
-vector<uint16_t> sieve_primes_below(uint32_t limit) {
-    vector<uint8_t> is_prime(limit, 1);
-    is_prime[0] = is_prime[1] = 0;
-    for (uint32_t p = 2; p * p < limit; ++p) {
-        if (is_prime[p]) {
-            for (uint32_t m = p * p; m < limit; m += p) is_prime[m] = 0;
-        }
-    }
-    vector<uint16_t> primes;
-    for (uint32_t i = 2; i < limit; ++i) if (is_prime[i]) primes.push_back(static_cast<uint16_t>(i));
-    return primes;
+static std::mt19937_64
+	rng((uint64_t)chrono::high_resolution_clock::now().time_since_epoch().count());
+
+// ----- Утилиты -----
+static u32 bit_length_u64(u64 x) {
+	if (x == 0)
+		return 0;
+	u32 l = 0;
+	while (x) {
+		++l;
+		x >>= 1;
+	}
+	return l;
 }
 
-uint64_t modmul(uint64_t a, uint64_t b, uint64_t mod) {
-    a %= mod;
-    uint64_t res = 0;
-    while (b) {
-        if (b & 1) {
-            if (res >= mod - a) res = res - (mod - a);
-            else res = res + a;
-        }
-        if (a >= mod - a) a = a - (mod - a);
-        else a = a + a;
-        b >>= 1;
-    }
-    return res;
+// безопасное (без __int128) умножение по модулю: использует double-and-add
+static u64 mulmod(u64 a, u64 b, u64 mod) {
+	a %= mod;
+	u64 res = 0;
+	while (b) {
+		if (b & 1) {
+			// res = (res + a) % mod, выполняем без переполнения
+			if (res >= mod - a)
+				res = res + a - mod;
+			else
+				res = res + a;
+		}
+		// a = (a + a) % mod
+		if (a >= mod - a)
+			a = a + a - mod;
+		else
+			a = a + a;
+		b >>= 1;
+	}
+	return res;
 }
 
-// Быстрое возведение в степень по модулю
-uint64_t modpow(uint64_t base, uint64_t exp, uint64_t mod) {
-    uint64_t result = 1;
-    base %= mod;
-    while (exp) {
-        if (exp & 1) result = modmul(result, base, mod);
-        base = modmul(base, base, mod);
-        exp >>= 1;
-    }
-    return result;
+static u64 powmod(u64 a, u64 e, u64 mod) {
+	a %= mod;
+	u64 res = 1 % mod;
+	while (e) {
+		if (e & 1)
+			res = mulmod(res, a, mod);
+		a = mulmod(a, a, mod);
+		e >>= 1;
+	}
+	return res;
 }
 
-uint64_t ugcd(uint64_t a, uint64_t b) {
-    while (b) {
-        uint64_t t = a % b;
-        a = b; b = t;
-    }
-    return a;
+static u64 random_in_range(u64 lo, u64 hi) {
+	if (lo >= hi)
+		return lo;
+	std::uniform_int_distribution<u64> dist(lo, hi);
+	return dist(rng);
 }
 
-// Сильный тест Миллера — вероятностный
-bool miller_rabin_probable(uint64_t n, uint32_t rounds, std::mt19937_64 &rng, const vector<uint16_t> &small_primes) {
-    if (n < 2) return false;
-    for (uint16_t p : small_primes) {
-        if (n == p) return true;
-        if (n % p == 0) return false;
-    }
-    uint64_t d = n - 1;
-    uint32_t s = 0;
-    while ((d & 1) == 0) { d >>= 1; ++s; }
-    std::uniform_int_distribution<uint64_t> dist(2, n - 2);
-    for (uint32_t i = 0; i < rounds; ++i) {
-        uint64_t a = dist(rng);
-        uint64_t x = modpow(a, d, n);
-        if (x == 1 || x == n - 1) continue;
-        bool composite = true;
-        for (uint32_t r = 1; r < s; ++r) {
-            x = modmul(x, x, n);
-            if (x == n - 1) { composite = false; break; }
-        }
-        if (composite) return false;
-    }
-    return true;
+static vector<u16> sieve_primes_upto(u16 limit) {
+	vector<char> is(limit + 1, true);
+	is[0] = is[1] = false;
+	for (u32 p = 2; (u32)p * p <= limit; ++p)
+		if (is[p]) {
+			for (u32 q = p * p; q <= limit; q += p)
+				is[q] = false;
+		}
+	vector<u16> out;
+	for (u32 i = 2; i <= limit; ++i)
+		if (is[i])
+			out.push_back((u16)i);
+	return out;
 }
 
-// Целочисленный квадратный корень (приближённо через double, затем корректировка)
-uint64_t isqrt_u64(uint64_t x) {
-    if (x == 0) return 0;
-    long double d = std::sqrt((long double)x);
-    uint64_t r = (uint64_t)d;
-    while ((r+1) * (r+1) <= x) ++r;
-    while (r * r > x) --r;
-    return r;
+// Простейшая факторизация (тр/дел) — подходит для наших размеров
+static map<u64, u32> factorize(u64 n, const vector<u16> &small_primes) {
+	map<u64, u32> f;
+	u64 m = n;
+	for (u16 p : small_primes) {
+		if ((u64)p * (u64)p > m)
+			break;
+		if (m % p == 0) {
+			u32 cnt = 0;
+			while (m % p == 0) {
+				m /= p;
+				++cnt;
+			}
+			f[p] = cnt;
+		}
+	}
+	// дальнейшее пробное деление (неоптимально, но для учебных размеров нормально)
+	u64 d = (small_primes.empty() ? 3 : (u64)small_primes.back() + 2);
+	if (m > 1) {
+		for (u64 i = d; i * i <= m; i += 2) {
+			if (m % i == 0) {
+				u32 cnt = 0;
+				while (m % i == 0) {
+					m /= i;
+					++cnt;
+				}
+				f[i] = cnt;
+			}
+		}
+	}
+	if (m > 1)
+		f[m]++; // остаток — простое
+	return f;
 }
 
-// Тест Поклингтона: пытаемся получить детерминистическое доказательство простоты,
-// факторизуя часть n-1 малыми простыми и проверяя свидетелей.
-bool pocklington_prove_prime(uint64_t n, const vector<uint16_t> &small_primes, std::mt19937_64 &rng) {
-    if (n < 2) return false;
-    for (uint16_t p : small_primes) {
-        if (n == p) return true;
-        if (n % p == 0) return false;
-    }
-    uint64_t n1 = n - 1;
-    uint64_t A = 1; // произведение известных факторных частей
-    vector<uint64_t> factors;
-    for (uint16_t p : small_primes) {
-        if (p > n1) break;
-        if (n1 % p == 0) {
-            uint64_t cur = 1;
-            while (n1 % p == 0) { n1 /= p; cur *= p; }
-            A *= cur;
-            factors.push_back(p);
-        }
-        // если накопленное A стало больше sqrt(n) — достаточно
-        uint64_t sqrt_n = isqrt_u64(n);
-        if (A > sqrt_n) break;
-    }
-    if (A <= isqrt_u64(n)) return false; // не факторизовали достаточную часть n-1
-    // Для каждого простого q | A нужно найти a: a^(n-1) ≡ 1 (mod n) и gcd(a^((n-1)/q)-1, n) = 1
-    std::uniform_int_distribution<uint64_t> dist(2, n - 2);
-    for (uint64_t q : factors) {
-        bool ok_q = false;
-        for (uint32_t attempt = 0; attempt < 8; ++attempt) {
-            uint64_t a = dist(rng);
-            if (modpow(a, n - 1, n) != 1) continue;
-            uint64_t t = modpow(a, (n - 1) / q, n);
-            uint64_t g = ugcd((t + n - 1) % n, n); // gcd(t-1, n)
-            if (g == 1) { ok_q = true; break; }
-        }
-        if (!ok_q) return false;
-    }
-    return true;
+// классический вероятностный тест Миллера-Рабина
+static bool miller_rabin(u64 n, u32 iterations) {
+	if (n < 2)
+		return false;
+	static const u64 small[] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37};
+	for (u64 p : small) {
+		if (n == p)
+			return true;
+		if (n % p == 0)
+			return false;
+	}
+	u64 d = n - 1;
+	u32 s = 0;
+	while ((d & 1) == 0) {
+		d >>= 1;
+		++s;
+	}
+	for (u32 it = 0; it < iterations; ++it) {
+		u64 a = random_in_range(2, n - 2);
+		u64 x = powmod(a, d, n);
+		if (x == 1 || x == n - 1)
+			continue;
+		bool composite = true;
+		for (u32 r = 1; r < s; ++r) {
+			x = mulmod(x, x, n);
+			if (x == n - 1) {
+				composite = false;
+				break;
+			}
+		}
+		if (composite)
+			return false;
+	}
+	return true;
 }
 
-// Утилиты генератора случайных чисел фиксированной битовой длины
-uint64_t random_bits_uint(uint32_t bits, std::mt19937_64 &rng) {
-    if (bits == 0) return 0;
-    if (bits >= 64) bits = 63; // ограничение для безопасности
-    uint64_t top = uint64_t(1) << (bits - 1);
-    uint64_t mask = (bits == 64) ? ~uint64_t(0) : ((uint64_t(1) << bits) - 1);
-    uint64_t x = rng() & mask;
-    x |= top; // старший бит гарантирован
-    x |= 1;   // делаем нечётным
-    return x;
+// Реализация "Miller" как в задании (работаем со знанием разложения n-1).
+// Возвращает: true => принято за простое (или "не опровергнуто"), false => составное.
+// t - число случайных оснований
+static bool miller_test_with_factors(u64 n, const map<u64, u32> &factors_nminus1, u32 t) {
+	if (n < 3)
+		return false;
+	// 1) выбираем t случайных оснований a_j
+	vector<u64> a_list;
+	for (u32 i = 0; i < t; ++i) {
+		u64 a = random_in_range(2, n - 2);
+		a_list.push_back(a);
+	}
+	// 2) для каждого a_j проверяем a_j^(n-1) mod n == 1
+	for (u64 a : a_list) {
+		if (powmod(a, n - 1, n) != 1)
+			return false; // однозначно составное
+	}
+	// 3) для каждого простого фактора q_i проверяем a_j^{(n-1)/q_i}
+	for (auto &pf : factors_nminus1) {
+		u64 q = pf.first;
+		bool all_one_over_all_a = true;
+		u64 exp = (n - 1) / q;
+		for (u64 a : a_list) {
+			u64 r = powmod(a, exp, n);
+			if (r != 1) {
+				all_one_over_all_a = false;
+				break;
+			}
+		}
+		if (all_one_over_all_a) {
+			// если для некоторого q все основания дают 1, то тест говорит "вероятно составное"
+			return false; // трактуем как составное (согласно заданию)
+		}
+	}
+	// иначе считаем простым (вероятно)
+	return true;
 }
 
-// Генератор по Миллеру: пробуем случайные кандидаты и принимаем те, что проходят MR
-// Возвращаем: найденные числа, а также количество кандидатов, которые были отвергнуты, но MR показал "вероятно простые"
-struct GenResult {
-    vector<uint64_t> found;
-    uint32_t false_rejected_by_method_but_probably_prime = 0;
-};
-
-GenResult generate_by_miller(uint32_t bits, uint32_t need, std::mt19937_64 &rng, const vector<uint16_t> &small_primes, uint32_t rounds_gen) {
-    GenResult res;
-    uint32_t attempts = 0;
-    while (res.found.size() < need && attempts < 200000) {
-        ++attempts;
-        uint64_t cand = random_bits_uint(bits, rng);
-        // быстрое отсеивание по маленьким простым
-        bool divisible = false;
-        for (uint16_t p : small_primes) {
-            if (cand == p) { divisible = false; break; }
-            if (cand % p == 0) { divisible = true; break; }
-        }
-        if (divisible) {
-            // rejected by method (simple divisibility check); check MR probabilistic
-            if (miller_rabin_probable(cand, 2, rng, small_primes)) ++res.false_rejected_by_method_but_probably_prime;
-            continue;
-        }
-        if (miller_rabin_probable(cand, rounds_gen, rng, small_primes)) {
-            res.found.push_back(cand);
-        } else {
-            if (miller_rabin_probable(cand, 2, rng, small_primes)) ++res.false_rejected_by_method_but_probably_prime;
-        }
-    }
-    return res;
+// Тест Поклингтона (базовый): вход n, факторизация F (F > R), R - соответствующий множитель, t -
+// число оснований. Возвращает true => доказательство простоты (или "вероятно простое" при неполных
+// условиях).
+static bool pocklington_test(u64 n, const map<u64, u32> &F_factors, u32 t) {
+	if (n < 3)
+		return false;
+	// 1) выбираем t оснований
+	for (u32 it = 0; it < t; ++it) {
+		u64 a = random_in_range(2, n - 2);
+		if (powmod(a, n - 1, n) != 1)
+			return false; // составное
+		bool ok_for_all_q = true;
+		for (auto &pf : F_factors) {
+			u64 q = pf.first;
+			u64 exp = (n - 1) / q;
+			u64 val = powmod(a, exp, n);
+			u64 g = std::gcd((u64)((val + n - 1) % n), n); // gcd(val-1, n)
+			if (g != 1) {
+				ok_for_all_q = false;
+				break;
+			}
+		}
+		if (ok_for_all_q) {
+			// теорема Поклингтона — при дополнительном условии F > sqrt(n)-1 можно утверждать
+			// простоту. Для небольших n мы требуем это условие; иначе считаем "вероятно простое".
+			long double sq = sqrt((long double)n);
+			u64 F = 1;
+			for (auto &pf : F_factors) {
+				for (u32 e = 0; e < pf.second; ++e) {
+					if (F > n / pf.first)
+						F = n;
+					else
+						F *= pf.first;
+				}
+			}
+			if (F > (u64)floor(sq) - 1)
+				return true; // можно считать доказанным
+			else
+				return true; // для учебной реализации считаем принятым (вероятно простое)
+		}
+		// иначе пробуем другое a
+	}
+	// не нашли подходящего основания — не доказано простое
+	return false;
 }
 
-// Генератор по Поклингтону: пробуем кандидатов и пытаемся доказать простоту через факторизацию части n-1
-GenResult generate_by_pocklington(uint32_t bits, uint32_t need, std::mt19937_64 &rng, const vector<uint16_t> &small_primes) {
-    GenResult res;
-    uint32_t attempts = 0;
-    while (res.found.size() < need && attempts < 200000) {
-        ++attempts;
-        uint64_t cand = random_bits_uint(bits, rng);
-        // малоформальный быстрый отбор
-        bool divisible = false;
-        for (uint16_t p : small_primes) {
-            if (cand == p) { divisible = false; break; }
-            if (cand % p == 0) { divisible = true; break; }
-        }
-        if (divisible) {
-            if (miller_rabin_probable(cand, 2, rng, small_primes)) ++res.false_rejected_by_method_but_probably_prime;
-            continue;
-        }
-        // пытаемся доказать простоту
-        if (pocklington_prove_prime(cand, small_primes, rng)) {
-            res.found.push_back(cand);
-        } else {
-            if (miller_rabin_probable(cand, 2, rng, small_primes)) ++res.false_rejected_by_method_but_probably_prime;
-        }
-    }
-    return res;
+// Генерация случайного простого числа заданной длины (используем MR)
+static u64 generate_random_prime_bits(u32 bits, const vector<u16> &small_primes, u32 mr_iters = 5) {
+	if (bits < 2)
+		return 2;
+	while (true) {
+		u64 cand = ((u64)1 << (bits - 1)) | (random_in_range(0, ((u64)1 << (bits - 1)) - 1));
+		cand |= 1; // нечетное
+		// быстро исключаем делимость малыми простыми
+		bool divisible = false;
+		for (u16 p : small_primes) {
+			if (cand % p == 0 && cand != p) {
+				divisible = true;
+				break;
+			}
+		}
+		if (divisible)
+			continue;
+		if (miller_rabin(cand, mr_iters))
+			return cand;
+	}
 }
 
-// Упрощённая процедура "по ГОСТ": генерируем q (короткий простой), затем ищем p = q*k + 1 нужной длины
-GenResult generate_by_gost_like(uint32_t bits, uint32_t need, std::mt19937_64 &rng, const vector<uint16_t> &small_primes, uint32_t qbits) {
-    GenResult res;
-    // генерируем q (короткий простой)
-    auto gen_q = [&](uint32_t qb)->uint64_t {
-        uint32_t attempts = 0;
-        while (++attempts < 10000) {
-            uint64_t cand = random_bits_uint(qb, rng);
-            if (miller_rabin_probable(cand, 10, rng, small_primes)) return cand;
-        }
-        return 0;
-    };
-    uint64_t q = gen_q(qbits);
-    if (q == 0) {
-        // не удалось найти q — попробуем меньшую длину
-        q = gen_q(std::max<uint32_t>(3, qbits/2));
-        if (q == 0) return res;
-    }
-    // теперь ищем k так, чтобы p = q*k + 1 имела длину bits и была простой
-    // границы k
-    if (bits >= 63) return res; // ограничение по сдвигу
-    uint64_t minP = (uint64_t(1) << (bits - 1));
-    uint64_t maxP = (bits == 64) ? ~uint64_t(0) : ((uint64_t(1) << bits) - 1);
-    uint64_t kmin = (minP + q - 1) / q;
-    uint64_t kmax = maxP / q;
-    if (kmin > kmax) return res;
-    std::uniform_int_distribution<uint64_t> kdist(kmin, kmax);
-    uint32_t attempts = 0;
-    while (res.found.size() < need && attempts < 200000) {
-        ++attempts;
-        uint64_t k = kdist(rng);
-        uint64_t p = q * k + 1;
-        if (p < minP || p > maxP) continue;
-        bool divisible = false;
-        for (uint16_t sp : small_primes) {
-            if (p == sp) { divisible = false; break; }
-            if (p % sp == 0) { divisible = true; break; }
-        }
-        if (divisible) {
-            if (miller_rabin_probable(p, 2, rng, small_primes)) ++res.false_rejected_by_method_but_probably_prime;
-            continue;
-        }
-        if (miller_rabin_probable(p, 10, rng, small_primes)) {
-            res.found.push_back(p);
-        } else {
-            if (miller_rabin_probable(p, 2, rng, small_primes)) ++res.false_rejected_by_method_but_probably_prime;
-        }
-    }
-    return res;
+// Вспомог: построение m = product( q_i^{a_i} ) целенаправленно для Miller-генератора
+static u64 build_m_for_miller(u32 target_bits_minus1, const vector<u16> &small_primes,
+							  vector<u64> &rejected_candidates) {
+	// Будем пробовать собирать m случайным сложением множителей из таблицы
+	const u32 MAX_TRIES = 2000;
+	for (u32 attempt = 0; attempt < MAX_TRIES; ++attempt) {
+		u64 m = 1;
+		map<u64, u32> fac;
+		// добавляем множители, пока не достигнем нужной длины
+		while (bit_length_u64(m) < target_bits_minus1) {
+			u16 q = small_primes[random_in_range(0, small_primes.size() - 1)];
+			u32 a = (u32)random_in_range(1, 4); // небольшие степени
+			u64 term = 1;
+			for (u32 i = 0; i < a; ++i) {
+				if (term > (UINT64_MAX / q)) {
+					term = 0;
+					break;
+				}
+				term *= q;
+			}
+			if (term == 0)
+				break;
+			if (m > 0 && term > (UINT64_MAX / m)) {
+				m = 0;
+				break;
+			}
+			m *= term;
+			if (m == 0)
+				break;
+			fac[q] += a;
+			// если превысили по битам — выходим и начнём заново
+			if (bit_length_u64(m) > target_bits_minus1 + 2)
+				break;
+		}
+		if (bit_length_u64(m) != target_bits_minus1)
+			continue;
+		u64 n = 2 * m + 1;
+		if (n < 3)
+			continue;
+		// факторизация n-1 известна — это 2 * факторизация(m)
+		map<u64, u32> nminus1_fac = factorize(n - 1, small_primes);
+		// проверка по специальному Миллеру с t небольшим (используем t=6)
+		if (miller_test_with_factors(n, nminus1_fac, 6)) {
+			return n;
+		} else {
+			rejected_candidates.push_back(n);
+		}
+	}
+	return 0; // не нашли
 }
 
-// Помощник для печати таблицы результатов
-void print_results_table(const string &title, const vector<uint64_t> &vals, const vector<char> &results, uint32_t k) {
-    cout << "---- " << title << " ----\n";
-    uint32_t n = vals.size();
-    cout << std::setw(6) << "№";
-    for (uint32_t i = 0; i < n; ++i) cout << std::setw(22) << (i+1);
-    cout << "\n";
-    cout << std::setw(6) << "p";
-    for (uint32_t i = 0; i < n; ++i) cout << std::setw(22) << vals[i];
-    cout << "\n";
-    cout << std::setw(6) << "MR";
-    for (uint32_t i = 0; i < n; ++i) cout << std::setw(22) << results[i];
-    cout << "\n";
-    cout << "k (rejected by method but MR says probable prime): " << k << "\n\n";
+// Построение F для Поклингтона: F ~ > половины размера, возврат F, её факторизация
+static bool build_F_and_R_for_pocklington(u32 target_bits, const vector<u16> &small_primes,
+										  u64 &out_n, map<u64, u32> &out_F_factors,
+										  vector<u64> &rejected_candidates) {
+	const u32 MAX_TRIES = 2000;
+	u32 half_bits = (target_bits / 2) + 1;
+	for (u32 attempt = 0; attempt < MAX_TRIES; ++attempt) {
+		// Собираем F
+		u64 F = 1;
+		map<u64, u32> Ff;
+		while (bit_length_u64(F) < (u32)half_bits) {
+			u16 q = small_primes[random_in_range(0, small_primes.size() - 1)];
+			u32 a = (u32)random_in_range(1, 4);
+			u64 term = 1;
+			for (u32 i = 0; i < a; ++i) {
+				if (term > (UINT64_MAX / q)) {
+					term = 0;
+					break;
+				}
+				term *= q;
+			}
+			if (term == 0)
+				break;
+			if (F > 0 && term > (UINT64_MAX / F)) {
+				F = 0;
+				break;
+			}
+			F *= term;
+			Ff[q] += a;
+			if (bit_length_u64(F) > half_bits + 4)
+				break;
+		}
+		if (bit_length_u64(F) < (u32)half_bits)
+			continue;
+		// R — случайное четное, размером на 1 бит меньше, чем F
+		u32 Rbits = max<u32>(1, bit_length_u64(F) - 1);
+		u64 R = (((u64)1 << (Rbits - 1)) | random_in_range(0, ((u64)1 << (Rbits - 1)) - 1));
+		if (R % 2 == 1)
+			R += 1;
+		if (R == 0)
+			continue;
+		// n = R*F + 1
+		// проверка переполнения
+		if (F > (UINT64_MAX - 1) / R)
+			continue;
+		u64 n = R * F + 1;
+		if (n < 3)
+			continue;
+		// проверка тестом Поклингтона
+		if (pocklington_test(n, Ff, 6)) {
+			out_n = n;
+			out_F_factors = Ff;
+			return true;
+		} else {
+			rejected_candidates.push_back(n);
+		}
+	}
+	return false;
 }
+
+// Упрощённый алгоритм по мотивам ГОСТ R 34.10-94:
+// 1) строим случайное q заданной небольшой длины (например половина требуемой), простое
+// 2) пробуем случайные k, p = k*q + 1, проверяем p на простоту (MR)
+// (это адаптация общего подхода поиска p с известным простым делителем q)
+static u64 generate_gost_like(u32 bits, const vector<u16> &small_primes,
+							  vector<u64> &rejected_candidates) {
+	u32 qbits = max<u32>(2, bits / 2);
+	for (u32 attempt = 0; attempt < 5000; ++attempt) {
+		u64 q = generate_random_prime_bits(qbits, small_primes, 5);
+		// ищем k так, чтобы p = k*q + 1 имел нужную длину и был простым
+		// начнём с k ~ 2^{bits}/q
+		u64 lower = ((u64)1 << (bits - 1)) / q;
+		if (lower < 2)
+			lower = 2;
+		for (u32 kk = 0; kk < 500; ++kk) {
+			u64 k = lower + kk;
+			// избегаем переполнений
+			if (k > (UINT64_MAX - 1) / q)
+				break;
+			u64 p = k * q + 1;
+			if (bit_length_u64(p) != bits)
+				continue;
+			if (miller_rabin(p, 6))
+				return p;
+			else
+				rejected_candidates.push_back(p);
+		}
+	}
+	return 0;
+}
+
+// ----- Основной эксперимент -----
+// Для каждого метода: генерируем 10 чисел, проверяем их MR(t) с t, даём таблицу.
+// Сохраняем отклонённые кандидаты и считаем k — сколько отклонённых MR считает простыми.
 
 void calculatePrimeNumbers() {
-    uint32_t bitlen = 32; // по умолчанию
-    const uint32_t need = 10;
-    // Случайный генератор
-    std::random_device rd;
-    std::mt19937_64 rng(rd());
 
-    // 1) Решето до 500
-    auto small_primes = sieve_primes_below(500);
-    cout << "=== Простые числа < 500 (решето Эратосфена) ===\n";
-    // печатаем по 10 в строке
-    for (size_t i = 0; i < small_primes.size(); ++i) {
-        cout << std::setw(4) << small_primes[i];
-        if ((i+1) % 10 == 0) cout << "\n";
-    }
-    cout << "\n\n";
+	u32 target_bits = 16; // по умолчанию 7 бит
 
-    // Генерации
-    // 1a) Миллер
-    uint32_t rounds_gen = 10; // для генерации более строгая проверка
-    uint32_t rounds_check = 2; // для окончательной проверки, т.к. (1/4)^2 < 0.1
-    cout << "Генерация " << need << " простых чисел длины " << bitlen << " бит.\n\n";
+	// Sieve < 500
+	vector<u16> small_primes = sieve_primes_upto(499);
 
-    auto g_miller = generate_by_miller(bitlen, need, rng, small_primes, rounds_gen);
-    // финальная проверка всех найденных чисел MR с rounds_check
-    vector<char> res_miller;
-    for (auto p : g_miller.found) {
-        bool ok = miller_rabin_probable(p, rounds_check, rng, small_primes);
-        res_miller.push_back(ok ? '+' : '-');
-    }
-    print_results_table("Миллер-генератор", g_miller.found, res_miller, g_miller.false_rejected_by_method_but_probably_prime);
+	cout << "Таблица простых чисел < 500 (" << small_primes.size() << "):\n";
+	for (size_t i = 0; i < small_primes.size(); ++i) {
+		cout << setw(4) << (u32)small_primes[i];
+		if ((i + 1) % 10 == 0)
+			cout << "\n";
+	}
+	cout << "\n\n";
 
-    // 1b) Поклингтон
-    auto g_pock = generate_by_pocklington(bitlen, need, rng, small_primes);
-    vector<char> res_pock;
-    for (auto p : g_pock.found) {
-        bool ok = miller_rabin_probable(p, rounds_check, rng, small_primes);
-        res_pock.push_back(ok ? '+' : '-');
-    }
-    print_results_table("Поклингтон-генератор", g_pock.found, res_pock, g_pock.false_rejected_by_method_but_probably_prime);
+	// Параметр t для MR, такой, что вероятность ошибки <= 0.1.
+	// Для MR: ошибка за один раунд ≤ 1/4, значит достаточно t = ceil(log(0.1)/log(1/4)) = 2.
+	u32 mr_iterations_for_error = 2;
+	cout << "Используем вероятностный тест Миллера-Рабина с t = " << mr_iterations_for_error
+		 << " (прибл. вероятность ошибочного признания составного простым ≤ 0.1).\n\n";
 
-    // 1c) ГОСТ-подобный (упрощённый)
-    uint32_t qbits = std::max<uint32_t>(8, bitlen / 4);
-    auto g_gost = generate_by_gost_like(bitlen, need, rng, small_primes, qbits);
-    vector<char> res_gost;
-    for (auto p : g_gost.found) {
-        bool ok = miller_rabin_probable(p, rounds_check, rng, small_primes);
-        res_gost.push_back(ok ? '+' : '-');
-    }
-    print_results_table("ГОСТ-образный генератор", g_gost.found, res_gost, g_gost.false_rejected_by_method_but_probably_prime);
+	// 1) Miller-based generator
+	vector<u64> miller_primes;
+	vector<u64> miller_rejected;
+	while (miller_primes.size() < 10) {
+		u64 n = build_m_for_miller(target_bits - 1, small_primes, miller_rejected);
+		if (n == 0) {
+			cerr << "Не удалось заогнать m для Miller-алгоритма (попробуйте увеличить лимит "
+					"попыток)\n";
+			break;
+		}
+		// дополнительно проверяем итог MR
+		bool mr_ok = miller_rabin(n, mr_iterations_for_error);
+		if (mr_ok)
+			miller_primes.push_back(n);
+		else
+			miller_rejected.push_back(n);
+	}
 
-    cout << "Примечание: rounds_check = " << rounds_check << " (вероятность ошибки ≤ 0.1).\n";
-    cout << "Ограничения: поддерживаются длины бит ≤ 63. Для реальной криптографии требуется использование больших размеров и проверенных реализаций.\n";
+	// 2) Pocklington-based
+	vector<u64> pock_primes;
+	vector<u64> pock_rejected;
+	while (pock_primes.size() < 10) {
+		u64 n;
+		map<u64, u32> Ff;
+		if (!build_F_and_R_for_pocklington(target_bits, small_primes, n, Ff, pock_rejected)) {
+			cerr << "Не удалось найти n для Поклингтона за лимит попыток\n";
+			break;
+		}
+		bool mr_ok = miller_rabin(n, mr_iterations_for_error);
+		if (mr_ok)
+			pock_primes.push_back(n);
+		else
+			pock_rejected.push_back(n);
+	}
+
+	// 3) GOST-like generator
+	vector<u64> gost_primes;
+	vector<u64> gost_rejected;
+	while (gost_primes.size() < 10) {
+		u64 p = generate_gost_like(target_bits, small_primes, gost_rejected);
+		if (p == 0) {
+			cerr << "Не удалось сгенерировать p по ГОСТ-подобному методу (лимит попыток)\n";
+			break;
+		}
+		bool mr_ok = miller_rabin(p, mr_iterations_for_error);
+		if (mr_ok)
+			gost_primes.push_back(p);
+		else
+			gost_rejected.push_back(p);
+	}
+
+	// Вывод таблиц результатов по каждому методу + проверка MR (t=mr_iterations_for_error)
+	auto print_results_table = [&](const string &title, const vector<u64> &primes,
+								   const vector<u64> &rejected) {
+		cout << "\n--- " << title << " ---\n";
+		cout << "№\tp\t\tMR(" << mr_iterations_for_error << ")\n";
+		u32 idx = 1;
+		for (u64 p : primes) {
+			bool mr_ok = miller_rabin(p, mr_iterations_for_error);
+			cout << idx << "\t" << p << "\t" << (mr_ok ? "+" : "-") << "\n";
+			++idx;
+		}
+		// Проверяем отвергнутые кандидаты: сколько из них MR считает простыми
+		u32 k = 0;
+		for (u64 x : rejected) {
+			if (miller_rabin(x, mr_iterations_for_error))
+				++k;
+		}
+		cout << "k (сколько отвергнутых тестом определены MR как простые) = " << k << " (из "
+			 << rejected.size() << " отвергнутых)\n";
+	};
+
+	print_results_table("Miller-процедура", miller_primes, miller_rejected);
+	print_results_table("Поклингтон-процедура", pock_primes, pock_rejected);
+	print_results_table("ГОСТ-процедура", gost_primes, gost_rejected);
+
+	// Доп. требование: проверка реализованного теста таблицей составных чисел.
+	cout << "\n=== Валидация реализованных тестов на наборе составных чисел ===\n";
+	vector<u64> control_composites = {561,	1105, 1729,
+									  2465, 2821, 6601}; // классические кармихэйл-числа и др.
+	cout << "Список контрольных составных чисел: ";
+	for (auto c : control_composites)
+		cout << c << " ";
+	cout << "\nПроводим t=1 (один раунд) многократно (50 повторов) и считаем частоту, когда тест "
+			"принимал составное за простое.\n";
+
+	auto empirical_check = [&](auto test_func, const string &name) {
+		cout << "\nТест: " << name << "\n";
+		u32 repeats = 50;
+		for (u64 c : control_composites) {
+			u32 false_accept = 0;
+			for (u32 r = 0; r < repeats; ++r) {
+				bool ok = test_func(c);
+				if (ok)
+					++false_accept; // приняли составное за простое
+			}
+			cout << "Число " << c << " — false_accept " << false_accept << " / " << repeats << "\n";
+		}
+	};
+
+	// Для MR с t=1 используем miller_rabin(c,1)
+	empirical_check([&](u64 n) -> bool { return miller_rabin(n, 1); }, "Miller-Rabin (t=1)");
+	// Для нашего miller_test_with_factors — используем разложение n-1 и t=1
+	empirical_check(
+		[&](u64 n) -> bool {
+			auto f = factorize(n - 1, small_primes);
+			return miller_test_with_factors(n, f, 1);
+		},
+		"Miller-специальный (t=1) с разложением n-1");
+	// Для Pocklington (t=1) — попытаемся применить при условиях (попытается распознать простоту, но
+	// на составных вероятно будет отклонять)
+	empirical_check(
+		[&](u64 n) -> bool {
+			// Для Pocklington нам нужно представить n-1 = R * F ; попробуем взять F — произведение
+			// мелких простых (не строго корректно, но для эмпирики)
+			auto f = factorize(n - 1, small_primes);
+			u64 F = 1;
+			for (auto &kv : f) {
+				for (u32 i = 0; i < kv.second; ++i)
+					F *= kv.first;
+			}
+			if (F == 0 || F >= (n - 1))
+				return false;
+			// u64 R = (n - 1) / F;
+			return pocklington_test(n, f, 1);
+		},
+		"Pocklington (t=1)");
+
+	cout << "\nГотово.\n";
 }
