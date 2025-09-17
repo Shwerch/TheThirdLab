@@ -192,43 +192,24 @@ static bool miller_test_with_factors(u64 n, const map<u64, u32> &factors_nminus1
 static bool pocklington_test(u64 n, const map<u64, u32> &F_factors, u32 t) {
 	if (n < 3)
 		return false;
-	// 1) выбираем t оснований
+	bool flag = true;
 	for (u32 it = 0; it < t; ++it) {
 		u64 a = random_in_range(2, n - 2);
 		if (powmod(a, n - 1, n) != 1)
 			return false; // составное
-		bool ok_for_all_q = true;
 		for (auto &pf : F_factors) {
 			u64 q = pf.first;
 			u64 exp = (n - 1) / q;
 			u64 val = powmod(a, exp, n);
-			u64 g = gcd((u64)((val + n - 1) % n), n); // gcd(val-1, n)
-			if (g != 1) {
-				ok_for_all_q = false;
+			if (val == 1) {
+				flag = false;
 				break;
 			}
 		}
-		if (ok_for_all_q) {
-			// теорема Поклингтона — при дополнительном условии F > sqrt(n)-1 можно утверждать
-			// простоту. Для небольших n мы требуем это условие; иначе считаем "вероятно простое".
-			long double sq = sqrt((long double)n);
-			u64 F = 1;
-			for (auto &pf : F_factors) {
-				for (u32 e = 0; e < pf.second; ++e) {
-					if (F > n / pf.first)
-						F = n;
-					else
-						F *= pf.first;
-				}
-			}
-			if (F > (u64)floor(sq) - 1)
-				return true; // можно считать доказанным
-			else
-				return true; // для учебной реализации считаем принятым (вероятно простое)
+		if (flag) {
+			return true;
 		}
-		// иначе пробуем другое a
 	}
-	// не нашли подходящего основания — не доказано простое
 	return false;
 }
 
@@ -255,8 +236,8 @@ static u64 generate_random_prime_bits(u32 bits, const vector<u16> &small_primes,
 }
 
 // Вспомог: построение m = product( q_i^{a_i} ) целенаправленно для Miller-генератора
-static u64 build_m_for_miller(u32 target_bits_minus1, const vector<u16> &small_primes,
-							  vector<u64> &rejected_candidates) {
+static u64 gemerate_miller(u32 target_bits_minus1, const vector<u16> &small_primes,
+						   vector<u64> &rejected_candidates) {
 	// Будем пробовать собирать m случайным сложением множителей из таблицы
 	const u32 MAX_TRIES = 2000;
 	for (u32 attempt = 0; attempt < MAX_TRIES; ++attempt) {
@@ -306,9 +287,8 @@ static u64 build_m_for_miller(u32 target_bits_minus1, const vector<u16> &small_p
 }
 
 // Построение F для Поклингтона: F ~ > половины размера, возврат F, её факторизация
-static bool build_F_and_R_for_pocklington(u32 target_bits, const vector<u16> &small_primes,
-										  u64 &out_n, map<u64, u32> &out_F_factors,
-										  vector<u64> &rejected_candidates) {
+static bool gemerate_pocklington(u32 target_bits, const vector<u16> &small_primes, u64 &out_n,
+								 map<u64, u32> &out_F_factors, vector<u64> &rejected_candidates) {
 	const u32 MAX_TRIES = 2000;
 	u32 half_bits = (target_bits / 2) + 1;
 	for (u32 attempt = 0; attempt < MAX_TRIES; ++attempt) {
@@ -366,62 +346,63 @@ static bool build_F_and_R_for_pocklington(u32 target_bits, const vector<u16> &sm
 
 // быстрое возведение в степень по модулю
 static uint64_t mod_pow(uint64_t base, uint64_t exp, uint64_t mod) {
-    uint64_t result = 1 % mod;
-    base %= mod;
-    while (exp > 0) {
-        if (exp & 1) { // если текущий бит равен 1
-            result = (__uint128_t)result * base % mod;
-        }
-        base = (__uint128_t)base * base % mod;
-        exp >>= 1; // переходим к следующему биту
-    }
-    return result;
+	uint64_t result = 1 % mod;
+	base %= mod;
+	while (exp > 0) {
+		if (exp & 1) { // если текущий бит равен 1
+			result = (__uint128_t)result * base % mod;
+		}
+		base = (__uint128_t)base * base % mod;
+		exp >>= 1; // переходим к следующему биту
+	}
+	return result;
 }
-
 
 // ГОСТ Р 34.10-94 (на основе теоремы Диемитко)
-static uint64_t generate_gost_like(uint32_t bits, const vector<uint16_t> &small_primes,
-                                   vector<uint64_t> &rejected_candidates) {
-    uint32_t qbits = max<uint32_t>(2, bits / 2);
+static uint64_t gemerate_gost(uint32_t bits, const vector<uint16_t> &small_primes,
+							  vector<uint64_t> &rejected_candidates) {
+	uint32_t qbits = max<uint32_t>(2, bits / 2);
 
-    for (uint32_t attempt = 0; attempt < 5000; ++attempt) {
-        // генерируем простое q длиной ~bits/2
-        uint64_t q = generate_random_prime_bits(qbits, small_primes, 5);
+	for (uint32_t attempt = 0; attempt < 5000; ++attempt) {
+		// генерируем простое q длиной ~bits/2
+		uint64_t q = generate_random_prime_bits(qbits, small_primes, 5);
 
-        // генерируем случайную дробь ξ в (0,1)
-        double xi = (double)rand() / (double)RAND_MAX;
+		// генерируем случайную дробь ξ в (0,1)
+		double xi = (double)rand() / (double)RAND_MAX;
 
-        // шаг 1: вычисляем N
-        uint64_t N = ((uint64_t)1 << (bits - 1)) / q;
-        N += (uint64_t)(((double)((uint64_t)1 << (bits - 1)) * xi) / (double)q);
+		// шаг 1: вычисляем N
+		uint64_t N = ((uint64_t)1 << (bits - 1)) / q;
+		N += (uint64_t)(((double)((uint64_t)1 << (bits - 1)) * xi) / (double)q);
 
-        // делаем N чётным
-        if (N % 2 == 1) N++;
+		// делаем N чётным
+		if (N % 2 == 1)
+			N++;
 
-        // шаги 2–6
-        uint64_t u = 0;
-        while (true) {
-            // кандидат в простые
-            if (N > (UINT64_MAX - 1) / q) break; // избегаем переполнения
-            uint64_t p = (N + u) * q + 1;
+		// шаги 2–6
+		uint64_t u = 0;
+		while (true) {
+			// кандидат в простые
+			if (N > (UINT64_MAX - 1) / q)
+				break; // избегаем переполнения
+			uint64_t p = (N + u) * q + 1;
 
-            // проверка верхней границы
-            if (p >= ((uint64_t)1 << bits)) break;
+			// проверка верхней границы
+			if (p > ((uint64_t)1 << bits))
+				break;
 
-            // проверка условия теоремы Диемитко для a=2
-            if (mod_pow(2, p - 1, p) == 1 && mod_pow(2, (p - 1) / q, p) != 1) {
-                return p; // простое число найдено
-            } else {
-                rejected_candidates.push_back(p);
-            }
+			// проверка условия теоремы Диемитко для a=2
+			if (mod_pow(2, p - 1, p) == 1 && mod_pow(2, (p - 1) / q, p) != 1) {
+				return p; // простое число найдено
+			} else {
+				rejected_candidates.push_back(p);
+			}
 
-            // шаг 6: увеличиваем u на 2
-            u += 2;
-        }
-    }
-    return 0;
+			// шаг 6: увеличиваем u на 2
+			u += 2;
+		}
+	}
+	return 0;
 }
-
 
 // Для каждого метода: генерируем 10 чисел, проверяем их MR(t) с t, даём таблицу.
 // Сохраняем отклонённые кандидаты и считаем k — сколько отклонённых MR считает простыми.
@@ -430,7 +411,6 @@ void calculatePrimeNumbers() {
 
 	u32 target_bits = 16;
 
-	// Sieve < 500
 	vector<u16> small_primes = sieve_primes_upto(499);
 
 	cout << "Таблица простых чисел < 500 (" << small_primes.size() << "):\n";
@@ -451,7 +431,7 @@ void calculatePrimeNumbers() {
 	vector<u64> miller_primes;
 	vector<u64> miller_rejected;
 	while (miller_primes.size() < 10) {
-		u64 n = build_m_for_miller(target_bits - 1, small_primes, miller_rejected);
+		u64 n = gemerate_miller(target_bits - 1, small_primes, miller_rejected);
 		if (n == 0) {
 			cerr << "Не удалось заогнать m для Miller-алгоритма (попробуйте увеличить лимит "
 					"попыток)\n";
@@ -471,7 +451,7 @@ void calculatePrimeNumbers() {
 	while (pock_primes.size() < 10) {
 		u64 n;
 		map<u64, u32> Ff;
-		if (!build_F_and_R_for_pocklington(target_bits, small_primes, n, Ff, pock_rejected)) {
+		if (!gemerate_pocklington(target_bits, small_primes, n, Ff, pock_rejected)) {
 			cerr << "Не удалось найти n для Поклингтона за лимит попыток\n";
 			break;
 		}
@@ -486,7 +466,7 @@ void calculatePrimeNumbers() {
 	vector<u64> gost_primes;
 	vector<u64> gost_rejected;
 	while (gost_primes.size() < 10) {
-		u64 p = generate_gost_like(target_bits, small_primes, gost_rejected);
+		u64 p = gemerate_gost(target_bits, small_primes, gost_rejected);
 		if (p == 0) {
 			cerr << "Не удалось сгенерировать p по ГОСТ-подобному методу (лимит попыток)\n";
 			break;
